@@ -1,5 +1,4 @@
 import java.util.*
-import kotlin.collections.LinkedHashSet
 
 class TaskParams(
         val rows: Int,
@@ -13,7 +12,8 @@ class TaskParams(
         val squareOfElements: MutableMap<Rectangle, SquareOfMap> = mutableMapOf(),
         val ridesByStartTime: MutableMap<Int, MutableSet<Ride>> = TreeMap(),
         val ridesComplete: MutableSet<Ride> = mutableSetOf(),
-        var drivers: MutableList<Driver> = mutableListOf()) {
+        var drivers: MutableList<Driver> = mutableListOf(),
+        var ridesUncomplete: MutableSet<Ride> = mutableSetOf()) {
 
     fun getSquareOfMapByCoordinates(rowIndex: Int, columnIndex: Int): SquareOfMap {
         val leftRow = rowIndex - rowIndex % squareOfMapRowElementsCount
@@ -63,19 +63,25 @@ class TaskParams(
         return ride.calculateDistance() + rideStartBonus
     }
 
+    private fun getUncompleteRides(ride: Ride?): Set<Ride> {
+        return ridesUncomplete.filter {
+            !it.complete && (it.previousRide == null || it.previousRide == ride)
+        }.toSet()
+    }
+
+    private fun getRideWithPrevious(ride: Ride): Ride? {
+        return ridesUncomplete.filter {
+            !it.complete && (it.previousRide == ride)
+        }.firstOrNull()
+    }
+
     fun getBestFirstRide(currentTime: Int, currentRowIndex: Int, currentColumnIndex: Int): RideRatingInfo? {
         if (ridesComplete.size == ridesCount) {
             return null
         }
 
-        val correctRides = getCorrectRides(Collections.emptySet(), currentRowIndex, currentColumnIndex, currentTime)
-        val bestRideInfo = getBestRideInfo(correctRides, currentRowIndex, currentColumnIndex, currentTime)
-
-        return bestRideInfo.firstOrNull()
-    }
-
-    fun getBestNextRideDeep(realEndTime: Int, ride: Ride): RideRatingInfo? {
-        val bestNextRides = getBestNextRide(realEndTime, ride)
+        val correctRides = getCorrectRides(Collections.emptySet(), currentRowIndex, currentColumnIndex, currentTime, null)
+        val bestNextRides = getBestRideInfo(correctRides, currentRowIndex, currentColumnIndex, currentTime)
         if (bestNextRides.isEmpty()) {
             return null
         }
@@ -86,10 +92,12 @@ class TaskParams(
 
         val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
 
-        bestNextRides.forEach {
-            futureBestRides[it.ride] = getBestNextRide(realEndTime + it.totalTime, it.ride).firstOrNull()
+        for (rideRatingInfo in bestNextRides) {
+            futureBestRides[rideRatingInfo.ride] = getBestNextRide(rideRatingInfo.totalTime, rideRatingInfo.ride).firstOrNull()
         }
+
         var bestRideRatingInfo: RideRatingInfo? = null
+
         bestNextRides.forEach {
             if (bestRideRatingInfo == null) {
                 bestRideRatingInfo = it
@@ -104,6 +112,52 @@ class TaskParams(
         return bestRideRatingInfo
     }
 
+    fun getBestNextRideDeep(realEndTime: Int, ride: Ride): RideRatingInfo? {
+        getRideWithPrevious(ride)?.let {
+            val rideRatingInfo = getRideRatingInfo(it, ride.rowIndex2, ride.columnIndex2, realEndTime)
+            getBestNextRide(rideRatingInfo.realEndTime, rideRatingInfo.ride).firstOrNull()?.let {
+                it.ride.previousRide =rideRatingInfo.ride
+            }
+            return rideRatingInfo
+        }
+
+        val bestNextRides = getBestNextRide(realEndTime, ride)
+
+
+        if (bestNextRides.isEmpty()) {
+            return null
+        }
+
+        if (bestNextRides.size == 1) {
+            return bestNextRides.first()
+        }
+
+        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
+
+        bestNextRides.forEach {
+            futureBestRides[it.ride] = getBestNextRide(realEndTime + it.totalTime, it.ride).firstOrNull()
+        }
+
+        var bestRideRatingInfo: RideRatingInfo? = null
+        bestNextRides.forEach {
+            if (bestRideRatingInfo == null) {
+                bestRideRatingInfo = it
+            } else {
+                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
+                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
+                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
+                    bestRideRatingInfo = it
+                }
+            }
+        }
+
+        futureBestRides[bestRideRatingInfo!!.ride]?.let {
+            it.ride.previousRide = bestRideRatingInfo!!.ride
+        }
+
+        return bestRideRatingInfo
+    }
+
 
     fun getBestNextRide(realEndTime: Int, ride: Ride): List<RideRatingInfo> {
         if (ridesComplete.size == ridesCount) {
@@ -114,7 +168,7 @@ class TaskParams(
         val y2 = ride.columnIndex2
         var correctRides: Set<Ride> = ride.getCorrectRides()
 
-        correctRides = getCorrectRides(correctRides, x2, y2, realEndTime)
+        correctRides = getCorrectRides(correctRides, x2, y2, realEndTime, ride)
 
         ride.addCorrectRides(correctRides)
 
@@ -140,47 +194,30 @@ class TaskParams(
         }).take(InputConfig.getBestRidesCount())
     }
 
-    private fun getCorrectRides(cachedRides: Set<Ride>, x2: Int, y2: Int, currentTime: Int): Set<Ride> {
+    private fun getCorrectRides(cachedRides: Set<Ride>, x2: Int, y2: Int, currentTime: Int, ride: Ride?): Set<Ride> {
         var correctRides = cachedRides
         if (correctRides.isEmpty()) {
 
-            val squareOfMap = getSquareOfMapByCoordinates(x2, y2)
-            val nearSquares: MutableSet<SquareOfMap> = LinkedHashSet(getNearestSquares(squareOfMap))
-
-            var newSquares: Set<SquareOfMap> = LinkedHashSet(nearSquares)
-
             var timeShift = InputConfig.getTimeWindowShift(totalTime)
             var ridesByTime = getRidesByTimeWithShift(currentTime, x2, y2, timeShift)
+            val uncompleteRides = getUncompleteRides(ride)
 
             while (correctRides.isEmpty()) {
-                correctRides = getRidesFromSquares(nearSquares).intersect(ridesByTime)
+                correctRides = ridesByTime.intersect(uncompleteRides)
 
                 if (correctRides.isNotEmpty()) {
                     break
                 }
-                val ridesByTimeFinished = currentTime + timeShift > totalTime && ridesByTime.isEmpty()
-
-                if (nearSquares.size == squareOfElements.size && ridesByTimeFinished) {
-                    break
-                }
-
-                if (correctRides.isEmpty()) {
-                    newSquares = getNearestSquares(newSquares).minus(nearSquares)
-                    val ridesFromSquares = getRidesFromSquares(newSquares)
-                    correctRides = ridesFromSquares.intersect(ridesByTime)
-                    nearSquares.addAll(newSquares)
-                } else {
-                    break
-                }
+                val ridesByTimeFinished = currentTime + timeShift > totalTime && correctRides.isEmpty()
 
                 if (ridesByTimeFinished) {
-                    continue
+                    break
                 }
 
                 if (currentTime + timeShift <= totalTime && correctRides.isEmpty()) {
                     timeShift += InputConfig.getTimeWindowShift(totalTime)
                     ridesByTime = getRidesByTimeWithShift(currentTime, x2, y2, timeShift)
-                    correctRides = getRidesFromSquares(nearSquares).intersect(ridesByTime)
+                    correctRides = ridesByTime.intersect(uncompleteRides)
                 }
             }
         }
@@ -259,7 +296,7 @@ class TaskParams(
             realScore += distance
         }
 
-        return RideRatingInfo(totalTime, rating, ride, rating.toDouble() / totalTime,
+        return RideRatingInfo(totalTime, rating, ride, realScore.toDouble() / totalTime,
                 startTime, realEndTime, realScore, waiting, distanceToPointA)
     }
 
@@ -272,7 +309,8 @@ class TaskParams(
 
         while (timesIterator.hasNext() && timeKey <= timeWithShift) {
             ridesByStartTime[timeKey]?.filter {
-                !it.complete && getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime).rating > 0
+                val rideRatingInfo = getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime)
+                !it.complete && rideRatingInfo.rating > 0
             }?.let { rides.addAll(it) }
             timeKey = timesIterator.next()
         }

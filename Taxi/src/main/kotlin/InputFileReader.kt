@@ -51,10 +51,7 @@ class InputFileReader {
                 ridesByStartTime[ride.startTime] = mutableSetOf()
             }
 
-            val squareOfMapByCoordinates = taskParams.getSquareOfMapByCoordinates(ride.rowIndex1, ride.columnIndex1)
-            squareOfMapByCoordinates.rides.add(ride)
-
-
+            taskParams.ridesUncomplete.add(ride)
             ridesByStartTime[ride.startTime]!!.add(ride)
         }
 

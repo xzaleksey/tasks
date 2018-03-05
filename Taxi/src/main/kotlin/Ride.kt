@@ -1,4 +1,4 @@
-data class Ride(
+class Ride(
         val id: Int,
 
         val rowIndex1: Int,
@@ -37,6 +37,34 @@ data class Ride(
 
     override fun toString(): String {
         return "Ride(rowIndex1=$rowIndex1, columnIndex1=$columnIndex1, rowIndex2=$rowIndex2, columnIndex2=$columnIndex2, startTime=$startTime, endTime=$endTime, complete=$complete)"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Ride
+
+        if (id != other.id) return false
+        if (rowIndex1 != other.rowIndex1) return false
+        if (columnIndex1 != other.columnIndex1) return false
+        if (rowIndex2 != other.rowIndex2) return false
+        if (columnIndex2 != other.columnIndex2) return false
+        if (startTime != other.startTime) return false
+        if (endTime != other.endTime) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id
+        result = 31 * result + rowIndex1
+        result = 31 * result + columnIndex1
+        result = 31 * result + rowIndex2
+        result = 31 * result + columnIndex2
+        result = 31 * result + startTime
+        result = 31 * result + endTime
+        return result
     }
 
 
