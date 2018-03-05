@@ -29,6 +29,7 @@ class TaskSolver {
         var score = 0
         var totalRides = 0
         var totalWaiting = 0
+        var totalDistanceToPointA = 0
 
         val drivers = taskParams.drivers
         for (driver in drivers) {
@@ -36,10 +37,12 @@ class TaskSolver {
                 score += ride.realScore
                 totalRides++
                 totalWaiting += ride.waiting
+                totalDistanceToPointA += ride.distanceToPintA
             }
         }
         val missedRides = totalRides - taskParams.ridesCount
-        println("total score $score missedRides $missedRides totalWaiting $totalWaiting")
+        println("total score $score missedRides $missedRides avgWaiting ${totalWaiting / totalRides}" +
+                " avgDistanceToPointA ${totalDistanceToPointA / totalRides}")
     }
 
     private fun getNextBestRide(driver: Driver, taskParams: TaskParams): RideRatingInfo? {
@@ -49,7 +52,7 @@ class TaskSolver {
         if (currentRide == null) {
             bestRide = taskParams.getBestFirstRide(driver.currentTime, driver.currentRowIndex, driver.currentColumnIndex)
         } else {
-            bestRide = taskParams.getBestNextRide(driver.currentTime, currentRide.ride, driver.currentRowIndex, driver.currentColumnIndex)
+            bestRide = taskParams.getBestNextRide(driver.currentTime, currentRide.ride).firstOrNull()
         }
         return bestRide
     }

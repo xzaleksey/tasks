@@ -5,4 +5,5 @@ class RideRatingInfo(val totalTime: Int,
                      val realStartTime: Int,
                      val realEndTime: Int,
                      val realScore: Int,
-                     val waiting: Int)
+                     val waiting: Int,
+                     val distanceToPintA:Int)

@@ -10,7 +10,7 @@ class TaskParams(
         val squareOfMapRowElementsCount: Int,
         val squareOfMapColumnElementsCount: Int,
         val squareOfElements: MutableMap<Rectangle, SquareOfMap> = mutableMapOf(),
-        val ridesByStartTime: MutableMap<Int, MutableSet<Ride>> = mutableMapOf(),
+        val ridesByStartTime: MutableMap<Int, MutableSet<Ride>> = TreeMap(),
         val ridesComplete: MutableSet<Ride> = mutableSetOf(),
         var drivers: MutableList<Driver> = mutableListOf()) {
 
@@ -53,41 +53,47 @@ class TaskParams(
         val correctRides = getCorrectRides(Collections.emptySet(), currentRowIndex, currentColumnIndex, currentTime)
         val bestRideInfo = getBestRideInfo(correctRides, currentRowIndex, currentColumnIndex, currentTime)
 
-        return bestRideInfo
+        return bestRideInfo.firstOrNull()
+    }
+
+    fun getBestNextRideDeep(realEndTime: Int, ride: Ride) {
+        val bestNextRides = getBestNextRide(realEndTime, ride)
     }
 
 
-    fun getBestNextRide(realEndTime: Int, ride: Ride, currentRowIndex: Int, currentColumnIndex: Int): RideRatingInfo? {
+    fun getBestNextRide(realEndTime: Int, ride: Ride): List<RideRatingInfo> {
         if (ridesComplete.size == ridesCount) {
-            return null
+            return Collections.emptyList()
         }
-
-        val rideInfo = getRideRatingInfo(ride, currentRowIndex, currentColumnIndex, realEndTime)
 
         val x2 = ride.rowIndex2
         val y2 = ride.columnIndex2
-
         var correctRides: Set<Ride> = ride.getCorrectRides()
+
         correctRides = getCorrectRides(correctRides, x2, y2, realEndTime)
 
         ride.addCorrectRides(correctRides)
+
         val bestRideInfo = getBestRideInfo(correctRides, x2, y2, realEndTime)
-        ride.bestNextRideInfo = bestRideInfo
+        ride.bestNextRideInfo = bestRideInfo.firstOrNull()
 
         return bestRideInfo
     }
 
-
-    private fun getBestRideInfo(correctRides: Set<Ride>, x2: Int, y2: Int, currentTime: Int): RideRatingInfo? {
-        var ratingInfo: RideRatingInfo? = null
+    private fun getBestRideInfo(correctRides: Set<Ride>, x2: Int, y2: Int, currentTime: Int): List<RideRatingInfo> {
+        val bestRatingInfos: MutableList<RideRatingInfo> = mutableListOf()
 
         for (correctRide in correctRides) {
             val rideRatingInfo = getRideRatingInfo(correctRide, x2, y2, currentTime)
-            if (ratingInfo == null || ratingInfo.kpd < rideRatingInfo.kpd) {
-                ratingInfo = rideRatingInfo
-            }
+            bestRatingInfos.add(rideRatingInfo)
         }
-        return ratingInfo
+
+        return bestRatingInfos.sortedWith(kotlin.Comparator { o1, o2 ->
+            if (o1.kpd < o2.kpd) return@Comparator -1
+            if (o1.kpd > o2.kpd) return@Comparator 1
+
+            return@Comparator 0
+        }).take(InputConfig.getBestRidesCount())
     }
 
     private fun getCorrectRides(cachedRides: Set<Ride>, x2: Int, y2: Int, currentTime: Int): Set<Ride> {
@@ -198,19 +204,21 @@ class TaskParams(
         }
 
         return RideRatingInfo(totalTime, rating, ride, rating.toDouble() / totalTime,
-                startTime, realEndTime, realScore, waiting)
+                startTime, realEndTime, realScore, waiting, distanceToPointA)
     }
 
     private fun getRidesByTimeWithShift(currentTime: Int, currentRowIndex: Int, currentColumnIndex: Int, timeShift: Int): MutableSet<Ride> {
         val timeWithShift = currentTime + timeShift
-        var time = 0
         val rides = mutableSetOf<Ride>()
 
-        while (time <= timeWithShift) {
-            ridesByStartTime[time]?.filter {
+        val timesIterator = ridesByStartTime.keys.iterator()
+        var currentTime = timesIterator.next()
+
+        while (timesIterator.hasNext() && (currentTime + timeWithShift < timeWithShift)) {
+            ridesByStartTime[currentTime]?.filter {
                 !it.complete && getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime).rating > 0
             }?.let { rides.addAll(it) }
-            time++
+            currentTime = timesIterator.next()
         }
         return rides
     }

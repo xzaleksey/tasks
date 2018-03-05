@@ -12,4 +12,8 @@ object InputConfig {
 
         return Math.max(Math.ceil((rowsCount / counter).toDouble()).toInt(), 1)
     }
+
+    fun getBestRidesCount(): Int {
+        return 5
+    }
 }
