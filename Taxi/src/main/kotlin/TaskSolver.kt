@@ -52,7 +52,7 @@ class TaskSolver {
         if (currentRide == null) {
             bestRide = taskParams.getBestFirstRide(driver.currentTime, driver.currentRowIndex, driver.currentColumnIndex)
         } else {
-            bestRide = taskParams.getBestNextRide(driver.currentTime, currentRide.ride).firstOrNull()
+            bestRide = taskParams.getBestNextRideDeep(driver.currentTime, currentRide.ride)
         }
         return bestRide
     }

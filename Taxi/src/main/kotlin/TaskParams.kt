@@ -1,4 +1,5 @@
 import java.util.*
+import kotlin.collections.LinkedHashSet
 
 class TaskParams(
         val rows: Int,
@@ -26,11 +27,28 @@ class TaskParams(
     fun getNextSquare(squareOfMap: SquareOfMap, direction: Direction): SquareOfMap? {
         var horizontalShift = 0
         var verticalShift = 0
+
         when (direction) {
             Direction.LEfT -> horizontalShift = -squareOfMapRowElementsCount
             Direction.RIGHT -> horizontalShift = squareOfMapRowElementsCount
             Direction.UP -> verticalShift = -squareOfMapColumnElementsCount
             Direction.BOTTOM -> verticalShift = squareOfMapColumnElementsCount
+            Direction.LEFT_BOTTOM -> {
+                horizontalShift = -squareOfMapRowElementsCount
+                verticalShift = squareOfMapColumnElementsCount
+            }
+            Direction.RIGHT_BOTTOM -> {
+                horizontalShift = squareOfMapRowElementsCount
+                verticalShift = squareOfMapColumnElementsCount
+            }
+            Direction.LEFT_UP -> {
+                horizontalShift = -squareOfMapRowElementsCount
+                verticalShift = -squareOfMapColumnElementsCount
+            }
+            Direction.RIGHT_UP -> {
+                horizontalShift = squareOfMapRowElementsCount
+                verticalShift = -squareOfMapColumnElementsCount
+            }
         }
 
         val rectangle = squareOfMap.rectangle
@@ -56,8 +74,34 @@ class TaskParams(
         return bestRideInfo.firstOrNull()
     }
 
-    fun getBestNextRideDeep(realEndTime: Int, ride: Ride) {
+    fun getBestNextRideDeep(realEndTime: Int, ride: Ride): RideRatingInfo? {
         val bestNextRides = getBestNextRide(realEndTime, ride)
+        if (bestNextRides.isEmpty()) {
+            return null
+        }
+
+        if (bestNextRides.size == 1) {
+            return bestNextRides.first()
+        }
+
+        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
+
+        bestNextRides.forEach {
+            futureBestRides[it.ride] = getBestNextRide(realEndTime + it.totalTime, it.ride).firstOrNull()
+        }
+        var bestRideRatingInfo: RideRatingInfo? = null
+        bestNextRides.forEach {
+            if (bestRideRatingInfo == null) {
+                bestRideRatingInfo = it
+            } else {
+                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
+                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
+                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
+                    bestRideRatingInfo = it
+                }
+            }
+        }
+        return bestRideRatingInfo
     }
 
 
@@ -89,8 +133,8 @@ class TaskParams(
         }
 
         return bestRatingInfos.sortedWith(kotlin.Comparator { o1, o2 ->
-            if (o1.kpd < o2.kpd) return@Comparator -1
-            if (o1.kpd > o2.kpd) return@Comparator 1
+            if (o1.kpd < o2.kpd) return@Comparator 1
+            if (o1.kpd > o2.kpd) return@Comparator -1
 
             return@Comparator 0
         }).take(InputConfig.getBestRidesCount())
@@ -101,9 +145,9 @@ class TaskParams(
         if (correctRides.isEmpty()) {
 
             val squareOfMap = getSquareOfMapByCoordinates(x2, y2)
-            val nearSquares: MutableSet<SquareOfMap> = mutableSetOf(squareOfMap)
+            val nearSquares: MutableSet<SquareOfMap> = LinkedHashSet(getNearestSquares(squareOfMap))
 
-            var newSquares: Set<SquareOfMap> = mutableSetOf(squareOfMap)
+            var newSquares: Set<SquareOfMap> = LinkedHashSet(nearSquares)
 
             var timeShift = InputConfig.getTimeWindowShift(totalTime)
             var ridesByTime = getRidesByTimeWithShift(currentTime, x2, y2, timeShift)
@@ -168,6 +212,18 @@ class TaskParams(
         getNextSquare(squareOfMap, Direction.BOTTOM)?.let {
             nearestSquares.add(it)
         }
+        getNextSquare(squareOfMap, Direction.LEFT_UP)?.let {
+            nearestSquares.add(it)
+        }
+        getNextSquare(squareOfMap, Direction.LEFT_BOTTOM)?.let {
+            nearestSquares.add(it)
+        }
+        getNextSquare(squareOfMap, Direction.RIGHT_UP)?.let {
+            nearestSquares.add(it)
+        }
+        getNextSquare(squareOfMap, Direction.RIGHT_BOTTOM)?.let {
+            nearestSquares.add(it)
+        }
 
         return nearestSquares
     }
@@ -212,13 +268,13 @@ class TaskParams(
         val rides = mutableSetOf<Ride>()
 
         val timesIterator = ridesByStartTime.keys.iterator()
-        var currentTime = timesIterator.next()
+        var timeKey = timesIterator.next()
 
-        while (timesIterator.hasNext() && (currentTime + timeWithShift < timeWithShift)) {
-            ridesByStartTime[currentTime]?.filter {
+        while (timesIterator.hasNext() && timeKey <= timeWithShift) {
+            ridesByStartTime[timeKey]?.filter {
                 !it.complete && getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime).rating > 0
             }?.let { rides.addAll(it) }
-            currentTime = timesIterator.next()
+            timeKey = timesIterator.next()
         }
         return rides
     }
