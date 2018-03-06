@@ -5,20 +5,6 @@ class TaskSolver {
             for (driver in taskParams.drivers.filter { !it.complete }) {
                 val nextBestRide = getNextBestRide(driver, taskParams)
                 nextBestRide?.let {
-                    driver.currentTime += it.totalTime
-                    val ride = it.ride
-                    ride.complete = true
-                    driver.rides.add(it)
-                    driver.currentRowIndex = ride.rowIndex2
-                    driver.currentColumnIndex = ride.columnIndex2
-                    taskParams.ridesComplete.add(ride)
-                    taskParams.ridesUncomplete.remove(ride)
-//                    println(ride)
-                }
-            }
-            for (driver in taskParams.drivers.filter { !it.complete }) {
-                val nextBestRide = getNextBestRide(driver, taskParams)
-                nextBestRide?.let {
                     driver.currentRide = it
                     driver.currentTime += it.totalTime
                     val ride = it.ride

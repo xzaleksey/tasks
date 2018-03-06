@@ -86,40 +86,38 @@ class TaskParams(
             return null
         }
 
-        if (bestNextRides.size == 1) {
-            return bestNextRides.first()
-        }
+        return bestNextRides.first()
 
-        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
-
-        for (rideRatingInfo in bestNextRides) {
-            futureBestRides[rideRatingInfo.ride] = getBestNextRide(rideRatingInfo.totalTime, rideRatingInfo.ride).firstOrNull()
-        }
-
-        var bestRideRatingInfo: RideRatingInfo? = null
-
-        bestNextRides.forEach {
-            if (bestRideRatingInfo == null) {
-                bestRideRatingInfo = it
-            } else {
-                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
-                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
-                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
-                    bestRideRatingInfo = it
-                }
-            }
-        }
-        return bestRideRatingInfo
+//        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
+//
+//        for (rideRatingInfo in bestNextRides) {
+//            futureBestRides[rideRatingInfo.ride] = getBestNextRide(rideRatingInfo.totalTime, rideRatingInfo.ride).firstOrNull()
+//        }
+//
+//        var bestRideRatingInfo: RideRatingInfo? = null
+//
+//        bestNextRides.forEach {
+//            if (bestRideRatingInfo == null) {
+//                bestRideRatingInfo = it
+//            } else {
+//                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
+//                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
+//                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
+//                    bestRideRatingInfo = it
+//                }
+//            }
+//        }
+//        return bestRideRatingInfo
     }
 
     fun getBestNextRideDeep(realEndTime: Int, ride: Ride): RideRatingInfo? {
-        getRideWithPrevious(ride)?.let {
-            val rideRatingInfo = getRideRatingInfo(it, ride.rowIndex2, ride.columnIndex2, realEndTime)
-            getBestNextRide(rideRatingInfo.realEndTime, rideRatingInfo.ride).firstOrNull()?.let {
-                it.ride.previousRide =rideRatingInfo.ride
-            }
-            return rideRatingInfo
-        }
+//        getRideWithPrevious(ride)?.let {
+//            val rideRatingInfo = getRideRatingInfo(it, ride.rowIndex2, ride.columnIndex2, realEndTime)
+//            getBestNextRide(rideRatingInfo.realEndTime, rideRatingInfo.ride).firstOrNull()?.let {
+//                it.ride.previousRide = rideRatingInfo.ride
+//            }
+//            return rideRatingInfo
+//        }
 
         val bestNextRides = getBestNextRide(realEndTime, ride)
 
@@ -128,34 +126,32 @@ class TaskParams(
             return null
         }
 
-        if (bestNextRides.size == 1) {
-            return bestNextRides.first()
-        }
+        return bestNextRides.first()
 
-        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
-
-        bestNextRides.forEach {
-            futureBestRides[it.ride] = getBestNextRide(realEndTime + it.totalTime, it.ride).firstOrNull()
-        }
-
-        var bestRideRatingInfo: RideRatingInfo? = null
-        bestNextRides.forEach {
-            if (bestRideRatingInfo == null) {
-                bestRideRatingInfo = it
-            } else {
-                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
-                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
-                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
-                    bestRideRatingInfo = it
-                }
-            }
-        }
-
-        futureBestRides[bestRideRatingInfo!!.ride]?.let {
-            it.ride.previousRide = bestRideRatingInfo!!.ride
-        }
-
-        return bestRideRatingInfo
+//        val futureBestRides: MutableMap<Ride, RideRatingInfo?> = mutableMapOf()
+//
+//        bestNextRides.forEach {
+//            futureBestRides[it.ride] = getBestNextRide(realEndTime + it.totalTime, it.ride).firstOrNull()
+//        }
+//
+//        var bestRideRatingInfo: RideRatingInfo? = null
+//        bestNextRides.forEach {
+//            if (bestRideRatingInfo == null) {
+//                bestRideRatingInfo = it
+//            } else {
+//                val futureKpdBest: Double = futureBestRides[bestRideRatingInfo!!.ride]?.kpd ?: 0.0
+//                val futureKpdCurrent: Double = futureBestRides[it.ride]?.kpd ?: 0.0
+//                if (bestRideRatingInfo!!.kpd + futureKpdBest < it.kpd + futureKpdCurrent) {
+//                    bestRideRatingInfo = it
+//                }
+//            }
+//        }
+//
+//        futureBestRides[bestRideRatingInfo!!.ride]?.let {
+//            it.ride.previousRide = bestRideRatingInfo!!.ride
+//        }
+//
+//        return bestRideRatingInfo
     }
 
 
@@ -307,10 +303,10 @@ class TaskParams(
         val timesIterator = ridesByStartTime.keys.iterator()
         var timeKey = timesIterator.next()
 
-        while (timesIterator.hasNext() && timeKey <= timeWithShift) {
+        while (timesIterator.hasNext()) {
             ridesByStartTime[timeKey]?.filter {
                 val rideRatingInfo = getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime)
-                !it.complete && rideRatingInfo.rating > 0
+                !it.complete && rideRatingInfo.kpd > 0
             }?.let { rides.addAll(it) }
             timeKey = timesIterator.next()
         }
