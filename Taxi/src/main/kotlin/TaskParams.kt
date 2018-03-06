@@ -278,7 +278,7 @@ class TaskParams(
 
         if (arrivalTime <= ride.startTime) {
             rating += rideStartBonus
-            waiting = ride.getWaiting(currentTime)
+            waiting = ride.getWaiting(arrivalTime)
             rating -= waiting
             realScore += rideStartBonus
         }
@@ -301,14 +301,13 @@ class TaskParams(
         val rides = mutableSetOf<Ride>()
 
         val timesIterator = ridesByStartTime.keys.iterator()
-        var timeKey = timesIterator.next()
 
         while (timesIterator.hasNext()) {
+            val timeKey = timesIterator.next()
             ridesByStartTime[timeKey]?.filter {
                 val rideRatingInfo = getRideRatingInfo(it, currentRowIndex, currentColumnIndex, currentTime)
                 !it.complete && rideRatingInfo.kpd > 0
             }?.let { rides.addAll(it) }
-            timeKey = timesIterator.next()
         }
         return rides
     }
